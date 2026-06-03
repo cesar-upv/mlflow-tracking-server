@@ -1,0 +1,13 @@
+{
+  "ignore": {
+    "customPatterns": [
+      ".git/**",
+      ".env",
+      ".env.*",
+      ".htpasswd",
+      "data-db/**",
+      "data-s3/**",
+      "repomix-output.*"
+    ]
+  }
+}

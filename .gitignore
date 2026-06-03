@@ -1,8 +1,12 @@
+# Local secrets
 .env
 .env.*
 !.env.example
-
 .htpasswd
 
+# Docker runtime data
 data-db/
 data-s3/
+
+# Repomix output
+repomix-output.*
