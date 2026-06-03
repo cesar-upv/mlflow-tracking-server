@@ -1,0 +1,8 @@
+.env
+.env.*
+!.env.example
+
+.htpasswd
+
+data-db/
+data-s3/
