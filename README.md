@@ -1,16 +1,32 @@
 # MLflow Tracking Server
 
-Servidor MLflow con Postgres, MinIO y Nginx. Apto para desarrollo local y producción utilizando SSH tunneling.
+Servidor MLflow con Postgres, MinIO y Nginx. Pensado para desarrollo local y despliegue en servidor Ubuntu con acceso mediante SSH tunneling.
 
-Incluye:
+Repositorio: https://github.com/cesar-upv/mlflow-tracking-server
 
-- **Postgres** como backend store de MLflow.
-- **MinIO** como artifact store compatible con S3.
-- **MLflow Tracking Server**.
-- **Nginx** como reverse proxy con Basic Auth.
-- **create-buckets** como contenedor temporal para crear el bucket de MinIO.
+## Componentes
 
----
+- **Postgres**: backend store de MLflow.
+- **MinIO**: artifact store compatible con S3.
+- **MLflow Tracking Server**: interfaz y API de tracking.
+- **Nginx**: reverse proxy con Basic Auth.
+- **create-buckets**: contenedor temporal que crea el bucket de MinIO.
+
+## Requisitos
+
+- Docker y Docker Compose.
+- Bash, `openssl`, `sed`, `grep`, `awk` y `tr`.
+- En servidor: Linux/Ubuntu recomendado.
+
+### Windows
+
+El proyecto está destinado a entornos Linux porque el servidor objetivo está basado en Ubuntu. Para ejecutarlo localmente en Windows se necesita una shell compatible con Bash:
+
+- **Git Bash**: opción más sencilla para la demo local.
+- **WSL (Windows Subsystem for Linux)**: opción más cercana a un entorno Linux real.
+- **Bash disponible en PATH**: válido si los comandos requeridos están instalados.
+
+Los comandos de inicialización deben ejecutarse desde esa shell, no desde `cmd.exe`.
 
 ## Archivos principales
 
@@ -25,152 +41,101 @@ scripts/bootstrap-secrets.sh
 scripts/create-minio-bucket.sh
 ```
 
----
-
-## 1. Preparación inicial local
-
-Crear `.env` desde el template:
+## Inicialización local
 
 ```bash
+git clone https://github.com/cesar-upv/mlflow-tracking-server
+cd mlflow-tracking-server
+
 cp .env.example .env
-```
-
-Dar permisos de ejecución a los scripts:
-
-```bash
 chmod +x scripts/bootstrap-secrets.sh
 chmod +x scripts/create-minio-bucket.sh
-```
 
-Generar secretos y `.htpasswd`:
-
-```bash
 ./scripts/bootstrap-secrets.sh
-```
 
----
-
-## 2. Levantar en desarrollo local
-
-Iniciar servicios:
-
-```bash
 docker compose up -d
 ```
 
-Ver estado:
+## Inicialización en servidor
 
 ```bash
+git clone https://github.com/cesar-upv/mlflow-tracking-server
+cd mlflow-tracking-server
+
+cp .env.example .env
+chmod +x scripts/bootstrap-secrets.sh
+chmod +x scripts/create-minio-bucket.sh
+
+./scripts/bootstrap-secrets.sh
+
+docker compose -f docker-compose.yml -f docker-compose.server.yml up -d
+```
+
+El archivo `docker-compose.server.yml` publica MLflow y MinIO solo en `127.0.0.1`, por lo que el acceso externo se hace mediante SSH tunnel.
+
+## Comandos útiles
+
+### Local
+
+```bash
+# Ver estado de los contenedores
 docker compose ps
+
+# Ver logs de los servicios principales
+docker compose logs -f postgres storage create-buckets mlflow nginx
+
+# Detener contenedores conservando datos
+docker compose down
 ```
 
-Ver logs específicos:
+### Servidor
 
 ```bash
-docker compose logs -f postgres storage create-buckets mlflow nginx
+# Ver estado de los contenedores
+docker compose -f docker-compose.yml -f docker-compose.server.yml ps
+
+# Ver logs de los servicios principales
+docker compose -f docker-compose.yml -f docker-compose.server.yml logs -f postgres storage create-buckets mlflow nginx
+
+# Detener contenedores conservando datos
+docker compose -f docker-compose.yml -f docker-compose.server.yml down
 ```
 
----
+## URLs
 
-## 3. URLs en desarrollo local
+En desarrollo local:
 
-- MLflow: `http://localhost:8080`
-- MinIO: `http://localhost:9001`
-- Healthcheck: `http://localhost:8080/health`
+```text
+MLflow:      http://localhost:8080
+MinIO:       http://localhost:9001
+Healthcheck: http://localhost:8080/health
+```
 
-Credenciales para MLflow/Nginx:
+Credenciales de MLflow/Nginx:
 
 ```dotenv
 NGINX_BASIC_AUTH_USER=...
 NGINX_BASIC_AUTH_PASSWORD=...
 ```
 
-Credenciales para MinIO:
+Credenciales de MinIO:
 
 ```dotenv
 AWS_ACCESS_KEY_ID=...
 AWS_SECRET_ACCESS_KEY=...
 ```
 
----
+`./scripts/bootstrap-secrets.sh` muestra la contraseña de Nginx al generarla. Guardarla en un lugar seguro.
 
-## 4. Detener entorno local
+## SSH tunnel
 
-Detener contenedores conservando datos:
-
-```bash
-docker compose down
-```
-
-Detener contenedores y borrar volúmenes Docker:
-
-```bash
-docker compose down -v
-```
-
-Borrar datos locales manualmente, solo si se quiere reiniciar todo desde cero:
-
-```bash
-sudo rm -rf data-db data-s3
-```
-
-> **Advertencia:**  
-> `data-db` contiene la metadata de MLflow.  
-> `data-s3` contiene los artifacts de MLflow.  
-> No borrar estos directorios si se quieren conservar experimentos y artifacts.
-
----
-
-## 5. Levantar en servidor
-
-Entrar al servidor y ubicarse en el proyecto:
-
-```bash
-cd /ruta/del/proyecto
-```
-
-Validar configuración combinada:
-
-```bash
-docker compose -f docker-compose.yml -f docker-compose.server.yml config
-```
-
-Levantar stack:
-
-```bash
-docker compose -f docker-compose.yml -f docker-compose.server.yml up -d
-```
-
-Ver estado:
-
-```bash
-docker compose -f docker-compose.yml -f docker-compose.server.yml ps
-```
-
-Ver logs específicos:
-
-```bash
-docker compose -f docker-compose.yml -f docker-compose.server.yml logs -f postgres storage create-buckets mlflow nginx
-```
-
----
-
-
-## 6. SSH tunnel al servidor
-
-Tunnel básico solo para MLflow:
+Solo MLflow:
 
 ```bash
 ssh -L 8080:127.0.0.1:8080 user@server
 ```
 
-Mientras ese comando esté abierto, acceder desde el navegador local a:
-
-```text
-http://localhost:8080
-```
-
-Tunnel para MLflow y MinIO:
+MLflow y MinIO:
 
 ```bash
 ssh \
@@ -179,24 +144,20 @@ ssh \
   user@server
 ```
 
-Luego abrir localmente:
+Mientras el tunnel esté abierto:
 
 ```text
 MLflow: http://localhost:8080
 MinIO:  http://localhost:9001
 ```
 
----
-
-## 7. Regenerar secretos
-
-Esto sobrescribe secretos en `.env` y regenera `.htpasswd`:
+## Regenerar secretos
 
 ```bash
 ./scripts/bootstrap-secrets.sh
 ```
 
-Después reiniciar Nginx y servicios que dependan de variables cambiadas.
+Esto sobrescribe secretos en `.env` y regenera `.htpasswd`. Después se deben reiniciar los servicios que dependen de esas variables.
 
 Local:
 
@@ -209,3 +170,20 @@ Servidor:
 ```bash
 docker compose -f docker-compose.yml -f docker-compose.server.yml restart nginx mlflow storage postgres
 ```
+
+## Datos persistentes
+
+El entorno usa directorios locales para persistir información:
+
+```text
+data-db  -> metadata de MLflow en Postgres
+data-s3  -> artifacts de MLflow en MinIO
+```
+
+Para borrar todo y empezar desde cero:
+
+```bash
+sudo rm -rf data-db data-s3
+```
+
+No borrar estos directorios si se quieren conservar experimentos y artifacts.
