@@ -72,6 +72,7 @@ docker compose -f docker-compose.yml -f docker-compose.server.yml up -d
 ```
 
 El archivo `docker-compose.server.yml` publica MLflow y MinIO solo en `127.0.0.1`, por lo que el acceso externo se hace mediante SSH tunnel.
+En modo servidor, MLflow se publica en el puerto `8081` del host para evitar conflictos con servicios externos. MinIO se publica como API en `9002` y consola en `9003`; dentro de la red de Docker sigue escuchando en `storage:9000`.
 
 ## Comandos útiles
 
@@ -132,23 +133,23 @@ AWS_SECRET_ACCESS_KEY=...
 Solo MLflow:
 
 ```bash
-ssh -L 8080:127.0.0.1:8080 user@server
+ssh -L 8081:127.0.0.1:8081 user@server
 ```
 
 MLflow y MinIO:
 
 ```bash
 ssh \
-  -L 8080:127.0.0.1:8080 \
-  -L 9001:127.0.0.1:9001 \
+  -L 8081:127.0.0.1:8081 \
+  -L 9003:127.0.0.1:9003 \
   user@server
 ```
 
 Mientras el tunnel esté abierto:
 
 ```text
-MLflow: http://localhost:8080
-MinIO:  http://localhost:9001
+MLflow:       http://localhost:8081
+MinIO Console: http://localhost:9003
 ```
 
 ## Regenerar secretos
