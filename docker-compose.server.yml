@@ -1,9 +1,9 @@
 services:
   nginx:
-    ports:
+    ports: !override
       - "127.0.0.1:8081:80"
 
   storage:
-    ports:
+    ports: !override
       - "127.0.0.1:9002:9000"
       - "127.0.0.1:9003:9001"
